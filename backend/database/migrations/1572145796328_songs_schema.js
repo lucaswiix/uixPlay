@@ -9,8 +9,10 @@ class SongsSchema extends Schema {
       table.increments();
       table.uuid('uuid').notNullable().unique();     
       table.string(`name`).notNullable();
-      table.string('url');
+      table.string('videoId');
+      table.string(`thumbnail`);
       table.string('src');
+      table.enu('status', [`online`, 'downloading', 'downloaded', 'error']).defaultTo('online');
       table.integer('playlist_id')
             .notNullable()
             .unsigned()

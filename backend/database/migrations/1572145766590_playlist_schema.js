@@ -9,13 +9,17 @@ class PlaylistSchema extends Schema {
       table.increments()
       table.uuid('uuid').notNullable().unique();
       table.string('name').notNullable();
-      table.integer(`group_id`)
-        .notNullable()
-        .unsigned()
-        .references(`id`)
-        .inTable(`groups`)
-        .onUpdate('CASCADE')
-        .onDelete('CASCADE');
+      table.boolean('isPrivate').defaultTo(0); 
+      table.integer(`user_id`)
+      .notNullable()
+      .unsigned()
+      .references(`id`)
+      .inTable(`users`)
+      .onUpdate('CASCADE')
+      .onDelete('CASCADE');
+      
+      table.string('thumbnail').nullable();
+      table.datetime(`deletedDate`).nullable();
       table.timestamps()
     })
   }

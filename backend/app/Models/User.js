@@ -7,6 +7,11 @@ const Model = use('Model')
 const Hash = use('Hash')
 
 class User extends Model {
+
+  static get hidden () {
+    return ['password', `id`, `email`]
+  }
+
   static get primaryKey () {
     return 'uuid'
   }

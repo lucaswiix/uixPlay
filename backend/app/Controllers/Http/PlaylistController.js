@@ -9,8 +9,8 @@
 const $playlist = use('App/Models/Playlist');
 /** @type {typeof import('../../Models/Song')} Model */
 const $song = use('App/Models/Song');
-/** @type {typeof import('../../Models/Group')} Model */
-const $group = use('App/Models/Group');
+
+const moment = use(`moment`);
 /**
  * Resourceful controller for interacting with playlists
  */
@@ -25,23 +25,28 @@ class PlaylistController {
    * @param {Response} ctx.response
    */
   async index ({ params, request, auth, response }) {
-    const uuid = params.uuid;
-    const { pageNum, perPage } = request.all();
-    const groups = await $group
+    const { pageNum, perPage } = request.all();    
+    return await $playlist
     .query()
-    .select(`id`)
-    .whereNull('deletedDate')
+    .select(`uuid`, `name`, `isPrivate`, `thumbnail`, `created_at`, `updated_at`)
     .where((builder) => {
       builder.where(`isPrivate`, 0);
       builder.orWhere('user_id', auth.user.id);
-    }).fetch();
-    const groupsIds = groups.toJSON().map(g => g.id);
-    const playlist = await $playlist
-    .query()
-    .whereIn('group_id', groupsIds)
-    .where('uuid', uuid)
-    .first();
+    })
+    .paginate(pageNum ? pageNum : 1, perPage ? perPage : 20);
+  }
 
+  /**
+   * List songs of playlist.
+   * GET playlists
+   *
+   * @param {object} ctx
+   * @param {Request} ctx.request
+   * @param {Response} ctx.response
+   */
+  async songs ({ params, request, auth, response }) {
+    const { pageNum, perPage } = request.all(); 
+    const playlist = await $playlist.findByUUID(params.uuid);
     return await $song
     .query()
     .where('playlist_id', playlist.id)
@@ -57,9 +62,8 @@ class PlaylistController {
    * @param {Response} ctx.response
    */
   async store ({ params, request, auth, response }) {
-    const { name } = request.all();
-    const group = await $group.findByUUID(params.groupUUID, auth.user.id);
-    return await $playlist.new({group_id: group.id, name});
+    const { name, isPrivate } = request.all();
+    return await $playlist.new({user_id: auth.user.id, isPrivate, name});
    }
 
   /**
@@ -73,27 +77,16 @@ class PlaylistController {
    */
   async show ({ params, request, auth, response }) {
     const uuid = params.uuid;
-    const { pageNum, perPage } = request.all();
-    const groups = await $group
+
+    return await $playlist
     .query()
-    .select(`id`)
-    .whereNull('deletedDate')
+    .select(`uuid`, `name`, `isPrivate`, `user_id`, `thumbnail`, `created_at`, `updated_at`)
+    .with(`user`)
     .where((builder) => {
       builder.where(`isPrivate`, 0);
       builder.orWhere('user_id', auth.user.id);
-    }).fetch();
-    const groupsIds = groups.toJSON().map(g => g.id);
-    const playlist = await $playlist
-    .query()
-    .whereIn('group_id', groupsIds)
-    .where('uuid', uuid)
-    .first();
-
-    return await $song
-    .query()
-    .where('playlist_id', playlist.id)
-    .paginate(pageNum ? pageNum : 1, perPage ? perPage : 20);
-
+    })
+    .where('uuid', uuid).first();
   }
   /**
    * Update playlist details.
@@ -106,19 +99,10 @@ class PlaylistController {
   async update ({ params, request, auth, response }) {
     const uuid = params.uuid;
     const { name } = request.all();
-    const groups = await $group
-    .query()
-    .select(`id`)
-    .whereNull('deletedDate')
-    .where((builder) => {
-      builder.where(`isPrivate`, 0);
-      builder.orWhere('user_id', auth.user.id);
-    }).fetch();
-    const groupsIds = groups.toJSON().map(g => g.id);
     
     await $playlist
       .query()
-      .whereIn(`group_id`, groupsIds)
+      .where('user_id', auth.user.id)
       .where(`uuid`, uuid)
       .update({name});
 
@@ -133,13 +117,15 @@ class PlaylistController {
    * @param {Response} ctx.response
    */
   async destroy ({ params, request, auth, response }) {
-    const uuid = params.id;
-    const groups = $group.findByUserId(auth.user.id);
-    const groupsIds = groups.map(g => g.id);
-    await $playlist.query()
-            .whereIn(`group_id`, groupsIds)
+    const uuid = params.uuid;
+
+    let isDel = await $playlist.query()
+            .where(`user_id`, auth.user.id)
             .where(`uuid`, uuid)
-            .delete();
+            .update({deletedDate: moment().format(`YYYY-MM-DD HH-mm-ss`)});
+
+    if(isDel) return response.ok();
+    else return response.badRequest();
   }
 }
 
