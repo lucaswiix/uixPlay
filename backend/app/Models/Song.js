@@ -12,6 +12,7 @@ class Song extends Model {
   playlist() {
     return this.belongsTo(`App/Models/Playlist`, `playlist_id`, `id`)
   }
+  
     static get primaryKey () {
         return 'uuid'
       }
